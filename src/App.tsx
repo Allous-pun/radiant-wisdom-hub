@@ -15,6 +15,10 @@ import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
+import StudentDashboard from "./pages/student/StudentDashboard";
+import LearningMaterials from "./pages/student/LearningMaterials";
+import Assignments from "./pages/student/Assignments";
+import ZoomSchedule from "./pages/student/ZoomSchedule";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +40,10 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/student" element={<StudentDashboard />} />
+            <Route path="/student/materials" element={<LearningMaterials />} />
+            <Route path="/student/assignments" element={<Assignments />} />
+            <Route path="/student/zoom-schedule" element={<ZoomSchedule />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
