@@ -22,6 +22,12 @@ import ZoomSchedule from "./pages/student/ZoomSchedule";
 import ClergyDashboard from "./pages/clergy/ClergyDashboard";
 import ClergySermonManagement from "./pages/clergy/SermonManagement";
 import ClergyPrayerManagement from "./pages/clergy/PrayerManagement";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import UserManagement from "./pages/admin/UserManagement";
+import AdminSermonManagement from "./pages/admin/SermonManagement";
+import AdminPrayerManagement from "./pages/admin/PrayerManagement";
+import BookManagement from "./pages/admin/BookManagement";
+import AssignmentManagement from "./pages/admin/AssignmentManagement";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +56,12 @@ const App = () => (
             <Route path="/clergy" element={<ClergyDashboard />} />
             <Route path="/clergy/sermons" element={<ClergySermonManagement />} />
             <Route path="/clergy/prayers" element={<ClergyPrayerManagement />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/sermons" element={<AdminSermonManagement />} />
+            <Route path="/admin/prayers" element={<AdminPrayerManagement />} />
+            <Route path="/admin/books" element={<BookManagement />} />
+            <Route path="/admin/assignments" element={<AssignmentManagement />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
