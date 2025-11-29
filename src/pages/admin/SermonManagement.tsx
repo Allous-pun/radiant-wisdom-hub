@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,97 +8,229 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, Edit, Trash2, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Sermon {
-  id: number;
+  _id: string;
   title: string;
-  author: string;
-  date: string;
-  scripture: string;
-  description: string;
-  status: "draft" | "published";
+  summary: string;
+  content: string;
+  category: string;
+  tags: string[];
+  image?: string;
+  audioFile?: string;
+  videoLink?: string;
+  author: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const SermonManagement = () => {
   const { toast } = useToast();
+  const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingSermon, setEditingSermon] = useState<Sermon | null>(null);
-
-  const [sermons, setSermons] = useState<Sermon[]>([
-    {
-      id: 1,
-      title: "Walking in Faith",
-      author: "Eugene Choge",
-      date: "2024-01-15",
-      scripture: "Hebrews 11:1",
-      description: "Understanding what it means to walk by faith and not by sight",
-      status: "published",
-    },
-    {
-      id: 2,
-      title: "Grace and Mercy",
-      author: "Eugene Choge",
-      date: "2024-01-08",
-      scripture: "Ephesians 2:8-9",
-      description: "Exploring God's amazing grace and boundless mercy",
-      status: "published",
-    },
-    {
-      id: 3,
-      title: "The Power of Prayer",
-      author: "Pastor Mark",
-      date: "2024-01-22",
-      scripture: "James 5:16",
-      description: "How prayer transforms our lives and communities",
-      status: "draft",
-    },
-  ]);
+  const [sermons, setSermons] = useState<Sermon[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
-    author: "",
-    date: "",
-    scripture: "",
-    description: "",
-    status: "draft" as "draft" | "published",
+    summary: "",
+    content: "",
+    category: "",
+    tags: "",
+    videoLink: "",
+    image: null as File | null,
+    audio: null as File | null,
+    isPublished: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingSermon) {
-      setSermons(sermons.map((s) => (s.id === editingSermon.id ? { ...formData, id: s.id } : s)));
-      toast({ title: "Sermon updated successfully" });
-    } else {
-      const newSermon = { ...formData, id: sermons.length + 1 };
-      setSermons([...sermons, newSermon]);
-      toast({ title: "Sermon created successfully" });
+  const categories = ["Faith", "Salvation", "Grace", "Prayer", "Worship", "Leadership", "Family", "Hope", "Love", "Other"];
+
+  const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
+
+  // Fetch all sermons
+  const fetchSermons = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sermons`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch sermons');
+      }
+      
+      const data = await response.json();
+      setSermons(data.data || []);
+    } catch (error) {
+      console.error('Error fetching sermons:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load sermons",
+        variant: "destructive",
+      });
     }
-    resetForm();
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchSermons();
+    }
+  }, [token]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('summary', formData.summary);
+      formDataToSend.append('content', formData.content);
+      formDataToSend.append('category', formData.category);
+      formDataToSend.append('tags', formData.tags);
+      formDataToSend.append('videoLink', formData.videoLink);
+      formDataToSend.append('isPublished', formData.isPublished.toString());
+      
+      if (formData.image) {
+        formDataToSend.append('image', formData.image);
+      }
+      if (formData.audio) {
+        formDataToSend.append('audio', formData.audio);
+      }
+
+      let response;
+      if (editingSermon) {
+        // Update sermon
+        response = await fetch(`${API_BASE_URL}/sermons/${editingSermon._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formDataToSend,
+        });
+      } else {
+        // Create new sermon
+        response = await fetch(`${API_BASE_URL}/sermons`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formDataToSend,
+        });
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to save sermon');
+      }
+
+      toast({
+        title: editingSermon ? "Sermon updated successfully" : "Sermon created successfully",
+      });
+
+      await fetchSermons();
+      resetForm();
+    } catch (error) {
+      console.error('Error saving sermon:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save sermon",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEdit = (sermon: Sermon) => {
     setEditingSermon(sermon);
-    setFormData(sermon);
+    setFormData({
+      title: sermon.title,
+      summary: sermon.summary,
+      content: sermon.content,
+      category: sermon.category,
+      tags: sermon.tags.join(','),
+      videoLink: sermon.videoLink || "",
+      image: null,
+      audio: null,
+      isPublished: sermon.isPublished,
+    });
     setIsAddDialogOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    setSermons(sermons.filter((s) => s.id !== id));
-    toast({ title: "Sermon deleted successfully", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this sermon?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/sermons/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete sermon');
+      }
+
+      toast({ title: "Sermon deleted successfully" });
+      await fetchSermons();
+    } catch (error) {
+      console.error('Error deleting sermon:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete sermon",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
-    setFormData({ title: "", author: "", date: "", scripture: "", description: "", status: "draft" });
+    setFormData({ 
+      title: "", 
+      summary: "", 
+      content: "", 
+      category: "", 
+      tags: "", 
+      videoLink: "", 
+      image: null, 
+      audio: null, 
+      isPublished: false 
+    });
     setEditingSermon(null);
     setIsAddDialogOpen(false);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({ ...formData, image: e.target.files[0] });
+    }
+  };
+
+  const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({ ...formData, audio: e.target.files[0] });
+    }
   };
 
   const filteredSermons = sermons.filter(
     (sermon) =>
       sermon.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sermon.scripture.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sermon.author.toLowerCase().includes(searchQuery.toLowerCase())
+      sermon.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sermon.author.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sermon.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -138,64 +270,108 @@ const SermonManagement = () => {
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="author">Author/Speaker</Label>
-                      <Input
-                        id="author"
-                        value={formData.author}
-                        onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="date">Date</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="scripture">Scripture Reference</Label>
-                      <Input
-                        id="scripture"
-                        value={formData.scripture}
-                        onChange={(e) => setFormData({ ...formData, scripture: e.target.value })}
-                        placeholder="e.g., John 3:16"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="description">Description/Summary</Label>
+                      <Label htmlFor="summary">Summary</Label>
                       <Textarea
-                        id="description"
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        rows={4}
+                        id="summary"
+                        value={formData.summary}
+                        onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                        rows={2}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="status">Status</Label>
+                      <Label htmlFor="content">Full Content</Label>
+                      <Textarea
+                        id="content"
+                        value={formData.content}
+                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                        rows={6}
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="category">Category</Label>
                       <select
-                        id="status"
+                        id="category"
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as "draft" | "published" })}
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        required
+                        disabled={isLoading}
                       >
-                        <option value="draft">Draft</option>
-                        <option value="published">Published</option>
+                        <option value="">Select a category</option>
+                        {categories.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
                       </select>
                     </div>
+                    <div>
+                      <Label htmlFor="tags">Tags (comma separated)</Label>
+                      <Input
+                        id="tags"
+                        value={formData.tags}
+                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                        placeholder="faith, transformation, spiritual-growth"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="videoLink">Video Link (Optional)</Label>
+                      <Input
+                        id="videoLink"
+                        type="url"
+                        value={formData.videoLink}
+                        onChange={(e) => setFormData({ ...formData, videoLink: e.target.value })}
+                        placeholder="https://youtube.com/example-sermon"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="image">Image (Optional)</Label>
+                      <Input
+                        id="image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="audio">Audio File (Optional)</Label>
+                      <Input
+                        id="audio"
+                        type="file"
+                        accept="audio/*"
+                        onChange={handleAudioChange}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isPublished"
+                        checked={formData.isPublished}
+                        onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                        disabled={isLoading}
+                        className="rounded border-gray-300"
+                      />
+                      <Label htmlFor="isPublished">Publish immediately</Label>
+                    </div>
                     <div className="flex justify-end gap-2 pt-4">
-                      <Button type="button" variant="outline" onClick={resetForm}>
+                      <Button type="button" variant="outline" onClick={resetForm} disabled={isLoading}>
                         Cancel
                       </Button>
-                      <Button type="submit">{editingSermon ? "Update" : "Create"}</Button>
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading ? "Saving..." : editingSermon ? "Update" : "Create"}
+                      </Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -221,33 +397,43 @@ const SermonManagement = () => {
                   <TableRow>
                     <TableHead>Title</TableHead>
                     <TableHead>Author</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Tags</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Scripture</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredSermons.map((sermon) => (
-                    <TableRow key={sermon.id}>
+                    <TableRow key={sermon._id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <BookOpen className="h-4 w-4 text-primary" />
                           {sermon.title}
                         </div>
                       </TableCell>
-                      <TableCell>{sermon.author}</TableCell>
-                      <TableCell>{new Date(sermon.date).toLocaleDateString()}</TableCell>
-                      <TableCell>{sermon.scripture}</TableCell>
+                      <TableCell>{sermon.author.name}</TableCell>
+                      <TableCell>{sermon.category}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {sermon.tags.map((tag, index) => (
+                            <span key={index} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>{new Date(sermon.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
-                            sermon.status === "published"
+                            sermon.isPublished
                               ? "bg-primary/10 text-primary"
                               : "bg-muted text-muted-foreground"
                           }`}
                         >
-                          {sermon.status}
+                          {sermon.isPublished ? "Published" : "Draft"}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
@@ -255,7 +441,7 @@ const SermonManagement = () => {
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(sermon)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(sermon.id)}>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(sermon._id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
