@@ -14,10 +14,23 @@ interface BookItem {
   authorName: string;
   description: string;
   category: string;
-  coverImage?: string;
-  pdfFile: string;
+  coverImage?: {
+    filename: string;
+    contentType: string;
+  };
+  pdfFile: {
+    filename: string;
+    contentType: string;
+    size: number;
+  };
+  uploadedBy: {
+    _id: string;
+    name: string;
+  };
+  numberOfDownloads: number;
+  isPublished: boolean;
   createdAt: string;
-  downloads: number;
+  updatedAt: string;
 }
 
 const BookManagement = () => {
@@ -29,6 +42,11 @@ const BookManagement = () => {
   const [books, setBooks] = useState<BookItem[]>([]);
 
   const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
+  
+  // Get token from localStorage (assuming you store it there after login)
+  const getAuthToken = () => {
+    return localStorage.getItem('adminToken'); // Adjust based on your token storage
+  };
 
   const categories = ["Spiritual Growth", "Education", "Prayer", "Theology", "Biography", "Devotional", "Other"];
 
@@ -42,7 +60,7 @@ const BookManagement = () => {
       }
       
       const data = await response.json();
-      setBooks(data.data || []);
+      setBooks(data.data?.books || data.data || []);
     } catch (error) {
       console.error('Error fetching books:', error);
       toast({
@@ -72,6 +90,16 @@ const BookManagement = () => {
     e.preventDefault();
     
     try {
+      const token = getAuthToken();
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please login as admin to manage books",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const submitData = new FormData();
       submitData.append('title', formData.title);
       submitData.append('authorName', formData.authorName);
@@ -87,24 +115,19 @@ const BookManagement = () => {
       }
 
       let response;
-      if (editingBook) {
-        // Update book
-        response = await fetch(`${API_BASE_URL}/books/${editingBook._id}`, {
-          method: 'PATCH',
-          body: submitData,
-          // Note: Don't set Content-Type header for FormData, browser will set it automatically with boundary
-        });
-      } else {
-        // Create new book
-        response = await fetch(`${API_BASE_URL}/books`, {
-          method: 'POST',
-          body: submitData,
-          // Note: Don't set Content-Type header for FormData, browser will set it automatically with boundary
-        });
-      }
+      const url = editingBook ? `${API_BASE_URL}/books/${editingBook._id}` : `${API_BASE_URL}/books`;
+      
+      response = await fetch(url, {
+        method: editingBook ? 'PATCH' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: submitData,
+      });
 
       if (!response.ok) {
-        throw new Error(`Failed to ${editingBook ? 'update' : 'create'} book`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to ${editingBook ? 'update' : 'create'} book`);
       }
 
       await fetchBooks(); // Refresh the list
@@ -112,11 +135,11 @@ const BookManagement = () => {
         title: `Book ${editingBook ? 'updated' : 'uploaded'} successfully` 
       });
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving book:', error);
       toast({
         title: "Error",
-        description: `Failed to ${editingBook ? 'update' : 'upload'} book`,
+        description: error.message || `Failed to ${editingBook ? 'update' : 'upload'} book`,
         variant: "destructive",
       });
     }
@@ -141,8 +164,21 @@ const BookManagement = () => {
     }
 
     try {
+      const token = getAuthToken();
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please login as admin to delete books",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/books/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
@@ -176,11 +212,18 @@ const BookManagement = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${bookTitle}.pdf`;
+      link.download = `${bookTitle.replace(/\s+/g, '_')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+
+      // Update download count in local state
+      setBooks(books.map(book => 
+        book._id === bookId 
+          ? { ...book, numberOfDownloads: book.numberOfDownloads + 1 }
+          : book
+      ));
 
       toast({ title: "Download started" });
     } catch (error) {
@@ -191,6 +234,13 @@ const BookManagement = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const getCoverImageUrl = (book: BookItem) => {
+    if (book.coverImage?.filename) {
+      return `${API_BASE_URL}/books/${book._id}/cover`;
+    }
+    return null;
   };
 
   const resetForm = () => {
@@ -219,6 +269,14 @@ const BookManagement = () => {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   if (isLoading) {
@@ -328,7 +386,7 @@ const BookManagement = () => {
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {editingBook && editingBook.coverImage ? 
-                          `Current: ${editingBook.coverImage}` : 
+                          `Current: ${editingBook.coverImage.filename}` : 
                           'Upload a cover image for the book'
                         }
                       </p>
@@ -352,7 +410,7 @@ const BookManagement = () => {
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {editingBook && editingBook.pdfFile ? 
-                          `Current: ${editingBook.pdfFile}` : 
+                          `Current: ${editingBook.pdfFile.filename} (${formatFileSize(editingBook.pdfFile.size)})` : 
                           'Upload the PDF file for the book'
                         }
                       </p>
@@ -396,7 +454,17 @@ const BookManagement = () => {
                   <Card key={book._id} className="hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="flex items-start justify-between">
-                        <Book className="h-8 w-8 text-primary" />
+                        <div className="flex items-center gap-2">
+                          {getCoverImageUrl(book) ? (
+                            <img 
+                              src={getCoverImageUrl(book)!} 
+                              alt={book.title}
+                              className="h-8 w-8 object-cover rounded"
+                            />
+                          ) : (
+                            <Book className="h-8 w-8 text-primary" />
+                          )}
+                        </div>
                         <div className="flex gap-1">
                           <Button 
                             variant="ghost" 
@@ -433,11 +501,16 @@ const BookManagement = () => {
                       </p>
                       <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                         <span className="px-2 py-1 rounded-full bg-muted">{book.category}</span>
-                        <span>{book.downloads || 0} downloads</span>
+                        <span>{book.numberOfDownloads || 0} downloads</span>
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Added: {formatDate(book.createdAt)}
                       </div>
+                      {book.pdfFile && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          PDF: {formatFileSize(book.pdfFile.size)}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
