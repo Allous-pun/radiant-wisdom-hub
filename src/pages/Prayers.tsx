@@ -1,48 +1,83 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { useToast } from "@/hooks/use-toast";
 
-const mockPrayers = [
-  {
-    id: 1,
-    title: "Prayer for Strength and Courage",
-    category: "Personal Growth",
-    description: "A powerful prayer for those facing challenges and needing divine strength.",
-  },
-  {
-    id: 2,
-    title: "Prayer for Healing and Restoration",
-    category: "Healing",
-    description: "Seeking God's healing touch for physical, emotional, and spiritual restoration.",
-  },
-  {
-    id: 3,
-    title: "Prayer for Family and Loved Ones",
-    category: "Family",
-    description: "Interceding for protection, unity, and blessings over your family.",
-  },
-  {
-    id: 4,
-    title: "Prayer for Wisdom and Guidance",
-    category: "Guidance",
-    description: "Asking God for clarity, wisdom, and direction in decision-making.",
-  },
-  {
-    id: 5,
-    title: "Prayer for Financial Breakthrough",
-    category: "Provision",
-    description: "Trusting God for provision, abundance, and financial miracles.",
-  },
-  {
-    id: 6,
-    title: "Prayer for Spiritual Growth",
-    category: "Spiritual Life",
-    description: "Seeking deeper intimacy with God and spiritual maturity.",
-  },
-];
+interface Prayer {
+  _id: string;
+  title: string;
+  image: string;
+  category: string;
+  author: {
+    _id: string;
+    name: string;
+    profile: {
+      photo: string;
+    };
+  };
+  createdAt: string;
+}
+
+interface PrayersResponse {
+  status: string;
+  message: string;
+  data: Prayer[];
+  meta: {
+    pagination: {
+      current: number;
+      pages: number;
+      total: number;
+    };
+  };
+}
 
 const Prayers = () => {
+  const [prayers, setPrayers] = useState<Prayer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
+
+  const fetchPrayers = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/prayers`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch prayers');
+      }
+      
+      const data: PrayersResponse = await response.json();
+      setPrayers(data.data);
+    } catch (error) {
+      console.error('Error fetching prayers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load prayers",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPrayers();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen py-12 px-4">
+        <div className="container max-w-6xl mx-auto">
+          <div className="text-center">
+            <p className="text-lg text-muted-foreground">Loading prayers...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen py-12 px-4">
       <div className="container max-w-6xl mx-auto">
@@ -55,9 +90,9 @@ const Prayers = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockPrayers.map((prayer, index) => (
+          {prayers.map((prayer, index) => (
             <Card 
-              key={prayer.id}
+              key={prayer._id}
               className="hover:shadow-warm transition-all duration-300 animate-slide-up"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
@@ -66,11 +101,13 @@ const Prayers = () => {
                   {prayer.category}
                 </div>
                 <CardTitle className="text-xl">{prayer.title}</CardTitle>
-                <CardDescription>{prayer.description}</CardDescription>
+                <CardDescription>
+                  By {prayer.author.name}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button variant="outline" className="w-full" asChild>
-                  <NavLink to={`/prayers/${prayer.id}`}>
+                  <NavLink to={`/prayers/${prayer._id}`}>
                     Read Prayer
                   </NavLink>
                 </Button>
@@ -78,6 +115,12 @@ const Prayers = () => {
             </Card>
           ))}
         </div>
+
+        {prayers.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-lg text-muted-foreground">No prayers found.</p>
+          </div>
+        )}
       </div>
     </div>
   );

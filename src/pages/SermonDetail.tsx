@@ -1,59 +1,109 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar, Clock, ArrowLeft } from "lucide-react";
 import { NavLink, useParams } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+
+interface Sermon {
+  _id: string;
+  title: string;
+  summary: string;
+  content: string;
+  category: string;
+  tags: string[];
+  image?: string;
+  audioFile?: string;
+  videoLink?: string;
+  author: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const SermonDetail = () => {
   const { id } = useParams();
+  const { toast } = useToast();
+  const [sermon, setSermon] = useState<Sermon | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data - replace with API call
-  const sermon = {
-    id,
-    title: "Walking in Faith: A Journey of Trust",
-    scripture: "Hebrews 11:1-6",
-    date: "March 15, 2024",
-    duration: "45 min",
-    content: `
-      <h2>Introduction</h2>
-      <p>Faith is not just a concept we believe in; it is the very foundation upon which we build our lives as believers. 
-      The Bible tells us that "faith is the substance of things hoped for, the evidence of things not seen" (Hebrews 11:1). 
-      Today, we will explore what it means to walk in faith and trust God completely.</p>
+  const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
 
-      <h2>1. Understanding Biblical Faith</h2>
-      <p>Faith goes beyond intellectual agreement. It is a confident trust in God's character, His promises, and His Word. 
-      When we exercise faith, we are saying "yes" to God even when circumstances seem impossible.</p>
+  // Fetch specific sermon
+  const fetchSermon = async () => {
+    if (!id) return;
 
-      <h2>2. Examples of Faith in Scripture</h2>
-      <p>Throughout the Bible, we see powerful examples of men and women who walked by faith:</p>
-      <ul>
-        <li>Abraham believed God and left his homeland without knowing where he was going</li>
-        <li>Moses chose to suffer with God's people rather than enjoy the pleasures of sin</li>
-        <li>Rahab protected the spies because she believed in the God of Israel</li>
-      </ul>
-
-      <h2>3. Growing Your Faith</h2>
-      <p>Faith grows through consistent spiritual practices:</p>
-      <ul>
-        <li>Regular study of God's Word</li>
-        <li>Prayer and communion with God</li>
-        <li>Fellowship with other believers</li>
-        <li>Acting on what you believe</li>
-      </ul>
-
-      <h2>4. Walking by Faith Daily</h2>
-      <p>Living by faith means making daily decisions to trust God rather than relying solely on what we see or feel. 
-      It means choosing His way even when it doesn't make sense to our natural mind.</p>
-
-      <h2>Conclusion</h2>
-      <p>As we conclude, remember that without faith it is impossible to please God. But when we choose to walk in faith, 
-      trusting Him completely, we position ourselves for His miraculous intervention in our lives. Let us be a people who 
-      walk by faith and not by sight, trusting that He who began a good work in us will complete it.</p>
-
-      <h2>Prayer</h2>
-      <p>Father, increase our faith. Help us to trust You in every situation and to walk confidently in Your promises. 
-      Give us the courage to step out in faith even when we cannot see the full picture. In Jesus' name, Amen.</p>
-    `,
+    try {
+      const response = await fetch(`${API_BASE_URL}/sermons/${id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch sermon');
+      }
+      
+      const data = await response.json();
+      setSermon(data.data);
+    } catch (error) {
+      console.error('Error fetching sermon:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load sermon",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchSermon();
+  }, [id]);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getDuration = (content: string) => {
+    const wordsPerMinute = 200;
+    const words = content.split(/\s+/).length;
+    const minutes = Math.ceil(words / wordsPerMinute);
+    return `${minutes} min read`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen py-12 px-4">
+        <div className="container max-w-4xl mx-auto">
+          <div className="text-center">
+            <p className="text-lg text-muted-foreground">Loading sermon...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!sermon) {
+    return (
+      <div className="min-h-screen py-12 px-4">
+        <div className="container max-w-4xl mx-auto text-center">
+          <h1 className="text-2xl font-bold mb-4">Sermon Not Found</h1>
+          <p className="text-muted-foreground mb-6">The sermon you're looking for doesn't exist.</p>
+          <Button asChild>
+            <NavLink to="/sermons">
+              Back to Sermons
+            </NavLink>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen py-12 px-4">
@@ -68,23 +118,80 @@ const SermonDetail = () => {
         <Card>
           <CardContent className="pt-8">
             <h1 className="text-3xl md:text-4xl font-bold mb-3">{sermon.title}</h1>
-            <p className="text-xl text-secondary mb-4">{sermon.scripture}</p>
+            <p className="text-xl text-secondary mb-2">{sermon.summary}</p>
+            <p className="text-muted-foreground mb-4">
+              {sermon.category} • By {sermon.author.name}
+            </p>
             
             <div className="flex items-center gap-6 text-sm text-muted-foreground mb-8 pb-8 border-b">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                <span>{sermon.date}</span>
+                <span>{formatDate(sermon.createdAt)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                <span>{sermon.duration}</span>
+                <span>{getDuration(sermon.content)}</span>
               </div>
             </div>
 
+            {/* Tags */}
+            <div className="flex flex-wrap gap-2 mb-8">
+              {sermon.tags.map((tag, index) => (
+                <span 
+                  key={index} 
+                  className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+
+            {/* Media Links */}
+            {(sermon.videoLink || sermon.audioFile) && (
+              <div className="mb-8 p-4 bg-muted rounded-lg">
+                <h3 className="font-semibold mb-3">Media Resources</h3>
+                <div className="flex gap-4">
+                  {sermon.videoLink && (
+                    <Button asChild variant="outline">
+                      <a href={sermon.videoLink} target="_blank" rel="noopener noreferrer">
+                        Watch Video
+                      </a>
+                    </Button>
+                  )}
+                  {sermon.audioFile && (
+                    <Button asChild variant="outline">
+                      <a href={sermon.audioFile} target="_blank" rel="noopener noreferrer">
+                        Listen to Audio
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sermon Content */}
             <div 
               className="prose prose-lg max-w-none"
-              dangerouslySetInnerHTML={{ __html: sermon.content }}
+              dangerouslySetInnerHTML={{ 
+                __html: sermon.content 
+                  .split('\n')
+                  .map(paragraph => {
+                    if (paragraph.trim().startsWith('<h2>') || paragraph.trim().startsWith('<h3>')) {
+                      return paragraph;
+                    }
+                    return `<p>${paragraph}</p>`;
+                  })
+                  .join('') 
+              }}
             />
+
+            {/* Author Info */}
+            <div className="mt-12 pt-8 border-t">
+              <h3 className="font-semibold text-lg mb-2">About the Speaker</h3>
+              <p className="text-muted-foreground">
+                {sermon.author.name} is dedicated to sharing God's word and helping believers grow in their faith journey.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

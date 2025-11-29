@@ -1,69 +1,103 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Heart } from "lucide-react";
 import { NavLink, useParams } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+
+interface PrayerDetail {
+  _id: string;
+  title: string;
+  image: string;
+  category: string;
+  content: string;
+  author: {
+    _id: string;
+    name: string;
+    profile: {
+      photo: string;
+    };
+  };
+  createdAt: string;
+}
+
+interface PrayerResponse {
+  status: string;
+  message: string;
+  data: PrayerDetail;
+}
 
 const PrayerDetail = () => {
   const { id } = useParams();
+  const { toast } = useToast();
+  const [prayer, setPrayer] = useState<PrayerDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data - replace with API call
-  const prayer = {
-    id,
-    title: "Prayer for Strength and Courage",
-    category: "Personal Growth",
-    content: `
-      <p class="text-lg mb-6 italic text-muted-foreground">
-        When you feel weak and overwhelmed, remember that God's strength is made perfect in your weakness. 
-        This prayer will help you tap into divine power and courage.
-      </p>
+  const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
 
-      <div class="space-y-6">
-        <p>
-          <strong>Heavenly Father,</strong><br/>
-          I come before You today acknowledging my need for Your strength. I confess that in my own power, 
-          I am weak, but I know that in You, I am made strong. Your Word says that those who wait upon You 
-          shall renew their strength; they shall mount up with wings like eagles.
-        </p>
+  const fetchPrayer = async () => {
+    if (!id) return;
 
-        <p>
-          Lord, I ask for courage to face the challenges before me. Remove every spirit of fear and anxiety 
-          from my heart. Replace them with boldness and confidence that comes from knowing You are with me. 
-          Help me to remember that You have not given me a spirit of fear, but of power, love, and a sound mind.
-        </p>
-
-        <p>
-          When I am tempted to give up, remind me of Your faithfulness. When I feel like I cannot go on, 
-          carry me in Your arms. When doubt tries to creep in, speak Your truth over my life. I declare that 
-          I can do all things through Christ who strengthens me.
-        </p>
-
-        <p>
-          Fill me afresh with Your Holy Spirit. Let Your power flow through me. Help me to walk in the 
-          authority You have given me as Your child. I refuse to be moved by what I see or feel, but I 
-          choose to stand firm on Your promises.
-        </p>
-
-        <p>
-          Thank You, Father, for being my refuge and strength, a very present help in times of trouble. 
-          Thank You for the victory that is already mine in Christ Jesus. I trust in You completely.
-        </p>
-
-        <p>
-          <strong>In Jesus' mighty name, Amen.</strong>
-        </p>
-      </div>
-
-      <div class="mt-8 p-6 bg-muted rounded-lg">
-        <h3 class="font-semibold text-lg mb-3">Scriptures to Meditate On:</h3>
-        <ul class="space-y-2 text-sm">
-          <li><strong>Isaiah 40:31</strong> - "But those who wait on the Lord shall renew their strength..."</li>
-          <li><strong>2 Timothy 1:7</strong> - "For God has not given us a spirit of fear..."</li>
-          <li><strong>Philippians 4:13</strong> - "I can do all things through Christ who strengthens me."</li>
-          <li><strong>Psalm 46:1</strong> - "God is our refuge and strength, a very present help in trouble."</li>
-        </ul>
-      </div>
-    `,
+    try {
+      const response = await fetch(`${API_BASE_URL}/prayers/${id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch prayer');
+      }
+      
+      const data: PrayerResponse = await response.json();
+      setPrayer(data.data);
+    } catch (error) {
+      console.error('Error fetching prayer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load prayer",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchPrayer();
+  }, [id]);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen py-12 px-4">
+        <div className="container max-w-4xl mx-auto">
+          <div className="text-center">
+            <p className="text-lg text-muted-foreground">Loading prayer...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!prayer) {
+    return (
+      <div className="min-h-screen py-12 px-4">
+        <div className="container max-w-4xl mx-auto text-center">
+          <h1 className="text-2xl font-bold mb-4">Prayer Not Found</h1>
+          <p className="text-muted-foreground mb-6">The prayer you're looking for doesn't exist.</p>
+          <Button asChild>
+            <NavLink to="/prayers">
+              Back to Prayers
+            </NavLink>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen py-12 px-4">
@@ -81,12 +115,33 @@ const PrayerDetail = () => {
             <div className="inline-block px-3 py-1 bg-secondary/10 text-secondary text-xs font-semibold rounded-full mb-3">
               {prayer.category}
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-8">{prayer.title}</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">{prayer.title}</h1>
+            <p className="text-muted-foreground mb-6">
+              By {prayer.author.name} • {formatDate(prayer.createdAt)}
+            </p>
             
             <div 
               className="prose prose-lg max-w-none"
-              dangerouslySetInnerHTML={{ __html: prayer.content }}
+              dangerouslySetInnerHTML={{ 
+                __html: prayer.content 
+                  .split('\n')
+                  .map(paragraph => {
+                    if (paragraph.trim().startsWith('<h2>') || paragraph.trim().startsWith('<h3>')) {
+                      return paragraph;
+                    }
+                    return `<p>${paragraph}</p>`;
+                  })
+                  .join('') 
+              }}
             />
+
+            {/* Author Info */}
+            <div className="mt-12 pt-8 border-t">
+              <h3 className="font-semibold text-lg mb-2">About the Author</h3>
+              <p className="text-muted-foreground">
+                {prayer.author.name} is dedicated to sharing prayers and helping believers grow in their spiritual journey.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
