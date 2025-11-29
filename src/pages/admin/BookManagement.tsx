@@ -39,13 +39,14 @@ const BookManagement = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<BookItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [books, setBooks] = useState<BookItem[]>([]);
 
   const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
   
-  // Get token from localStorage (assuming you store it there after login)
+  // Get token from localStorage
   const getAuthToken = () => {
-    return localStorage.getItem('adminToken'); // Adjust based on your token storage
+    return localStorage.getItem('adminToken');
   };
 
   const categories = ["Spiritual Growth", "Education", "Prayer", "Theology", "Biography", "Devotional", "Other"];
@@ -88,6 +89,7 @@ const BookManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     try {
       const token = getAuthToken();
@@ -95,6 +97,16 @@ const BookManagement = () => {
         toast({
           title: "Authentication Required",
           description: "Please login as admin to manage books",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate required fields for new book
+      if (!editingBook && !formData.pdfFile) {
+        toast({
+          title: "Validation Error",
+          description: "PDF file is required for new books",
           variant: "destructive",
         });
         return;
@@ -110,24 +122,48 @@ const BookManagement = () => {
         submitData.append('coverImage', formData.coverImage);
       }
       
+      // Only append PDF file if provided (required for new books, optional for updates)
       if (formData.pdfFile) {
         submitData.append('pdfFile', formData.pdfFile);
       }
 
+      console.log('Submitting book data:', {
+        title: formData.title,
+        authorName: formData.authorName,
+        category: formData.category,
+        hasCoverImage: !!formData.coverImage,
+        hasPdfFile: !!formData.pdfFile,
+        isEditing: !!editingBook
+      });
+
       let response;
       const url = editingBook ? `${API_BASE_URL}/books/${editingBook._id}` : `${API_BASE_URL}/books`;
+      const method = editingBook ? 'PATCH' : 'POST';
       
       response = await fetch(url, {
-        method: editingBook ? 'PATCH' : 'POST',
+        method: method,
         headers: {
           'Authorization': `Bearer ${token}`,
+          // Note: Don't set Content-Type for FormData - browser will set it automatically with boundary
         },
         body: submitData,
       });
 
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', responseText);
+        throw new Error('Invalid response from server');
+      }
+
+      console.log('Parsed response:', responseData);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to ${editingBook ? 'update' : 'create'} book`);
+        throw new Error(responseData.message || `Failed to ${editingBook ? 'update' : 'create'} book. Status: ${response.status}`);
       }
 
       await fetchBooks(); // Refresh the list
@@ -142,6 +178,8 @@ const BookManagement = () => {
         description: error.message || `Failed to ${editingBook ? 'update' : 'upload'} book`,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -225,7 +263,7 @@ const BookManagement = () => {
           : book
       ));
 
-      toast({ title: "Download started" });
+      toast({ title: "Download started successfully" });
     } catch (error) {
       console.error('Error downloading book:', error);
       toast({
@@ -279,6 +317,19 @@ const BookManagement = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Check if form is valid for submission
+  const isFormValid = () => {
+    const basicFieldsValid = formData.title && formData.authorName && formData.description && formData.category;
+    
+    if (editingBook) {
+      // For editing, only basic fields are required
+      return basicFieldsValid;
+    } else {
+      // For new books, PDF file is also required
+      return basicFieldsValid && formData.pdfFile;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -330,6 +381,7 @@ const BookManagement = () => {
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div>
@@ -339,6 +391,7 @@ const BookManagement = () => {
                         value={formData.authorName}
                         onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div>
@@ -349,6 +402,7 @@ const BookManagement = () => {
                         value={formData.category}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                         required
+                        disabled={isSubmitting}
                       >
                         <option value="">Select a category</option>
                         {categories.map((cat) => (
@@ -366,6 +420,7 @@ const BookManagement = () => {
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         rows={3}
                         required
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div>
@@ -381,6 +436,7 @@ const BookManagement = () => {
                               setFormData({ ...formData, coverImage: file });
                             }
                           }}
+                          disabled={isSubmitting}
                         />
                         <Upload className="h-4 w-4 text-muted-foreground" />
                       </div>
@@ -392,7 +448,9 @@ const BookManagement = () => {
                       </p>
                     </div>
                     <div>
-                      <Label htmlFor="pdfFile">PDF File *</Label>
+                      <Label htmlFor="pdfFile">
+                        PDF File {!editingBook && '*'}
+                      </Label>
                       <div className="flex items-center gap-2">
                         <Input
                           id="pdfFile"
@@ -405,6 +463,7 @@ const BookManagement = () => {
                             }
                           }}
                           required={!editingBook}
+                          disabled={isSubmitting}
                         />
                         <FileText className="h-4 w-4 text-muted-foreground" />
                       </div>
@@ -413,14 +472,25 @@ const BookManagement = () => {
                           `Current: ${editingBook.pdfFile.filename} (${formatFileSize(editingBook.pdfFile.size)})` : 
                           'Upload the PDF file for the book'
                         }
+                        {editingBook && (
+                          <span className="block text-blue-600">Leave empty to keep current PDF file</span>
+                        )}
                       </p>
                     </div>
                     <div className="flex justify-end gap-2 pt-4">
-                      <Button type="button" variant="outline" onClick={resetForm}>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={resetForm}
+                        disabled={isSubmitting}
+                      >
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={!formData.pdfFile && !editingBook}>
-                        {editingBook ? "Update Book" : "Upload Book"}
+                      <Button 
+                        type="submit" 
+                        disabled={!isFormValid() || isSubmitting}
+                      >
+                        {isSubmitting ? "Processing..." : editingBook ? "Update Book" : "Upload Book"}
                       </Button>
                     </div>
                   </form>
