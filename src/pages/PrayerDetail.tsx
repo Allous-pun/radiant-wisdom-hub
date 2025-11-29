@@ -5,26 +5,27 @@ import { ArrowLeft, Heart } from "lucide-react";
 import { NavLink, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
+interface PrayerAuthor {
+  _id: string;
+  name: string;
+}
+
 interface PrayerDetail {
   _id: string;
   title: string;
   image: string;
   category: string;
   content: string;
-  author: {
-    _id: string;
-    name: string;
-    profile: {
-      photo: string;
-    };
-  };
+  author: PrayerAuthor;
   createdAt: string;
 }
 
 interface PrayerResponse {
   status: string;
   message: string;
-  data: PrayerDetail;
+  data: {
+    prayer: PrayerDetail;
+  };
 }
 
 const PrayerDetail = () => {
@@ -46,7 +47,7 @@ const PrayerDetail = () => {
       }
       
       const data: PrayerResponse = await response.json();
-      setPrayer(data.data);
+      setPrayer(data.data.prayer);
     } catch (error) {
       console.error('Error fetching prayer:', error);
       toast({
@@ -113,23 +114,25 @@ const PrayerDetail = () => {
           <CardContent className="pt-8">
             <Heart className="h-12 w-12 text-secondary mb-4" />
             <div className="inline-block px-3 py-1 bg-secondary/10 text-secondary text-xs font-semibold rounded-full mb-3">
-              {prayer.category}
+              {prayer.category.replace(/"/g, '')}
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">{prayer.title}</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">{prayer.title.replace(/"/g, '')}</h1>
             <p className="text-muted-foreground mb-6">
-              By {prayer.author.name} • {formatDate(prayer.createdAt)}
+              By {prayer.author?.name || 'Unknown Author'} • {formatDate(prayer.createdAt)}
             </p>
             
             <div 
               className="prose prose-lg max-w-none"
               dangerouslySetInnerHTML={{ 
                 __html: prayer.content 
+                  .replace(/"/g, '')
                   .split('\n')
                   .map(paragraph => {
-                    if (paragraph.trim().startsWith('<h2>') || paragraph.trim().startsWith('<h3>')) {
-                      return paragraph;
+                    const trimmed = paragraph.trim();
+                    if (trimmed.startsWith('<h2>') || trimmed.startsWith('<h3>') || trimmed.startsWith('<h4>')) {
+                      return trimmed;
                     }
-                    return `<p>${paragraph}</p>`;
+                    return trimmed ? `<p>${trimmed}</p>` : '';
                   })
                   .join('') 
               }}
@@ -139,7 +142,7 @@ const PrayerDetail = () => {
             <div className="mt-12 pt-8 border-t">
               <h3 className="font-semibold text-lg mb-2">About the Author</h3>
               <p className="text-muted-foreground">
-                {prayer.author.name} is dedicated to sharing prayers and helping believers grow in their spiritual journey.
+                {prayer.author?.name || 'Unknown Author'} is dedicated to sharing prayers and helping believers grow in their spiritual journey.
               </p>
             </div>
           </CardContent>
