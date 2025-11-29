@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,99 +8,194 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, Edit, Trash2, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Prayer {
-  id: number;
+  _id: string;
   title: string;
   category: string;
-  author: string;
   content: string;
-  date: string;
-  status: "draft" | "published";
+  image?: string;
+  author: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const PrayerManagement = () => {
   const { toast } = useToast();
+  const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPrayer, setEditingPrayer] = useState<Prayer | null>(null);
-
-  const [prayers, setPrayers] = useState<Prayer[]>([
-    {
-      id: 1,
-      title: "Prayer for Healing",
-      category: "Healing",
-      author: "Eugene Choge",
-      content: "Lord, we come before you seeking your healing touch...",
-      date: "2024-01-14",
-      status: "published",
-    },
-    {
-      id: 2,
-      title: "Prayer for Guidance",
-      category: "Guidance",
-      author: "Pastor Mark",
-      content: "Heavenly Father, guide our steps and illuminate our path...",
-      date: "2024-01-10",
-      status: "published",
-    },
-    {
-      id: 3,
-      title: "Prayer for Peace",
-      category: "Peace",
-      author: "Eugene Choge",
-      content: "Prince of Peace, calm the storms in our lives...",
-      date: "2024-01-20",
-      status: "draft",
-    },
-  ]);
+  const [prayers, setPrayers] = useState<Prayer[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
     category: "",
-    author: "",
     content: "",
-    date: "",
-    status: "draft" as "draft" | "published",
+    image: null as File | null,
+    isPublished: false,
   });
 
-  const categories = ["Healing", "Guidance", "Peace", "Thanksgiving", "Protection", "Wisdom", "Strength", "Other"];
+  const categories = ["Healing", "Guidance", "Peace", "Thanksgiving", "Protection", "Wisdom", "Strength", "Morning Prayer", "Evening Prayer", "Other"];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingPrayer) {
-      setPrayers(prayers.map((p) => (p.id === editingPrayer.id ? { ...formData, id: p.id } : p)));
-      toast({ title: "Prayer updated successfully" });
-    } else {
-      const newPrayer = { ...formData, id: prayers.length + 1 };
-      setPrayers([...prayers, newPrayer]);
-      toast({ title: "Prayer created successfully" });
+  const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
+
+  // Fetch all prayers
+  const fetchPrayers = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/prayers`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch prayers');
+      }
+      
+      const data = await response.json();
+      setPrayers(data.data.prayers || []);
+    } catch (error) {
+      console.error('Error fetching prayers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load prayers",
+        variant: "destructive",
+      });
     }
-    resetForm();
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchPrayers();
+    }
+  }, [token]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('category', formData.category);
+      formDataToSend.append('content', formData.content);
+      formDataToSend.append('isPublished', formData.isPublished.toString());
+      
+      if (formData.image) {
+        formDataToSend.append('image', formData.image);
+      }
+
+      let response;
+      if (editingPrayer) {
+        // Update prayer
+        response = await fetch(`${API_BASE_URL}/prayers/${editingPrayer._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formDataToSend,
+        });
+      } else {
+        // Create new prayer
+        response = await fetch(`${API_BASE_URL}/prayers`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formDataToSend,
+        });
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to save prayer');
+      }
+
+      toast({
+        title: editingPrayer ? "Prayer updated successfully" : "Prayer created successfully",
+      });
+
+      await fetchPrayers();
+      resetForm();
+    } catch (error) {
+      console.error('Error saving prayer:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save prayer",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEdit = (prayer: Prayer) => {
     setEditingPrayer(prayer);
-    setFormData(prayer);
+    setFormData({
+      title: prayer.title,
+      category: prayer.category,
+      content: prayer.content,
+      image: null,
+      isPublished: prayer.isPublished,
+    });
     setIsAddDialogOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    setPrayers(prayers.filter((p) => p.id !== id));
-    toast({ title: "Prayer deleted successfully", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this prayer?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/prayers/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete prayer');
+      }
+
+      toast({ title: "Prayer deleted successfully" });
+      await fetchPrayers();
+    } catch (error) {
+      console.error('Error deleting prayer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete prayer",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
-    setFormData({ title: "", category: "", author: "", content: "", date: "", status: "draft" });
+    setFormData({ title: "", category: "", content: "", image: null, isPublished: false });
     setEditingPrayer(null);
     setIsAddDialogOpen(false);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({ ...formData, image: e.target.files[0] });
+    }
   };
 
   const filteredPrayers = prayers.filter(
     (prayer) =>
       prayer.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       prayer.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prayer.author.toLowerCase().includes(searchQuery.toLowerCase())
+      prayer.author.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -140,6 +235,7 @@ const PrayerManagement = () => {
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <div>
@@ -150,6 +246,7 @@ const PrayerManagement = () => {
                         value={formData.category}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                         required
+                        disabled={isLoading}
                       >
                         <option value="">Select a category</option>
                         {categories.map((cat) => (
@@ -160,25 +257,6 @@ const PrayerManagement = () => {
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="author">Author</Label>
-                      <Input
-                        id="author"
-                        value={formData.author}
-                        onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="date">Date</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="content">Prayer Content</Label>
                       <Textarea
                         id="content"
@@ -186,25 +264,37 @@ const PrayerManagement = () => {
                         onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                         rows={6}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="status">Status</Label>
-                      <select
-                        id="status"
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as "draft" | "published" })}
-                      >
-                        <option value="draft">Draft</option>
-                        <option value="published">Published</option>
-                      </select>
+                      <Label htmlFor="image">Image (Optional)</Label>
+                      <Input
+                        id="image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isPublished"
+                        checked={formData.isPublished}
+                        onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                        disabled={isLoading}
+                        className="rounded border-gray-300"
+                      />
+                      <Label htmlFor="isPublished">Publish immediately</Label>
                     </div>
                     <div className="flex justify-end gap-2 pt-4">
-                      <Button type="button" variant="outline" onClick={resetForm}>
+                      <Button type="button" variant="outline" onClick={resetForm} disabled={isLoading}>
                         Cancel
                       </Button>
-                      <Button type="submit">{editingPrayer ? "Update" : "Create"}</Button>
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading ? "Saving..." : editingPrayer ? "Update" : "Create"}
+                      </Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -238,7 +328,7 @@ const PrayerManagement = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredPrayers.map((prayer) => (
-                    <TableRow key={prayer.id}>
+                    <TableRow key={prayer._id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <Heart className="h-4 w-4 text-primary" />
@@ -246,17 +336,17 @@ const PrayerManagement = () => {
                         </div>
                       </TableCell>
                       <TableCell>{prayer.category}</TableCell>
-                      <TableCell>{prayer.author}</TableCell>
-                      <TableCell>{new Date(prayer.date).toLocaleDateString()}</TableCell>
+                      <TableCell>{prayer.author.name}</TableCell>
+                      <TableCell>{new Date(prayer.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
-                            prayer.status === "published"
+                            prayer.isPublished
                               ? "bg-primary/10 text-primary"
                               : "bg-muted text-muted-foreground"
                           }`}
                         >
-                          {prayer.status}
+                          {prayer.isPublished ? "Published" : "Draft"}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
@@ -264,7 +354,7 @@ const PrayerManagement = () => {
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(prayer)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(prayer.id)}>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(prayer._id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
