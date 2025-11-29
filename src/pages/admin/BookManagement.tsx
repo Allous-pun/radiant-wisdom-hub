@@ -1,22 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Search, Edit, Trash2, Book, Upload, FileText } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Book, Upload, FileText, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BookItem {
-  id: number;
+  _id: string;
   title: string;
-  author: string;
+  authorName: string;
   description: string;
   category: string;
-  coverImage: string;
+  coverImage?: string;
   pdfFile: string;
-  uploadDate: string;
+  createdAt: string;
   downloads: number;
 }
 
@@ -25,96 +25,182 @@ const BookManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<BookItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [books, setBooks] = useState<BookItem[]>([]);
 
-  const [books, setBooks] = useState<BookItem[]>([
-    {
-      id: 1,
-      title: "Walking in Divine Purpose",
-      author: "Eugene Kololi Choge",
-      description: "A comprehensive guide to discovering and living in your God-given purpose",
-      category: "Spiritual Growth",
-      coverImage: "/placeholder.svg",
-      pdfFile: "divine-purpose.pdf",
-      uploadDate: "2024-01-10",
-      downloads: 245,
-    },
-    {
-      id: 2,
-      title: "The Teacher's Heart",
-      author: "Eugene Kololi Choge",
-      description: "Insights into effective Christian education and mentorship",
-      category: "Education",
-      coverImage: "/placeholder.svg",
-      pdfFile: "teachers-heart.pdf",
-      uploadDate: "2024-01-15",
-      downloads: 189,
-    },
-    {
-      id: 3,
-      title: "Prayers That Transform",
-      author: "Eugene Kololi Choge",
-      description: "A collection of powerful prayers for various life situations",
-      category: "Prayer",
-      coverImage: "/placeholder.svg",
-      pdfFile: "prayers-transform.pdf",
-      uploadDate: "2024-01-20",
-      downloads: 312,
-    },
-  ]);
-
-  const [formData, setFormData] = useState({
-    title: "",
-    author: "",
-    description: "",
-    category: "",
-    coverImage: "",
-    pdfFile: "",
-    uploadDate: new Date().toISOString().split("T")[0],
-  });
+  const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
 
   const categories = ["Spiritual Growth", "Education", "Prayer", "Theology", "Biography", "Devotional", "Other"];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingBook) {
-      setBooks(books.map((b) => (b.id === editingBook.id ? { ...formData, id: b.id, downloads: b.downloads } : b)));
-      toast({ title: "Book updated successfully" });
-    } else {
-      const newBook = { ...formData, id: books.length + 1, downloads: 0 };
-      setBooks([...books, newBook]);
-      toast({ title: "Book uploaded successfully" });
+  // Fetch all books
+  const fetchBooks = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/books`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch books');
+      }
+      
+      const data = await response.json();
+      setBooks(data.data || []);
+    } catch (error) {
+      console.error('Error fetching books:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load books",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    resetForm();
+  };
+
+  useEffect(() => {
+    fetchBooks();
+  }, []);
+
+  const [formData, setFormData] = useState({
+    title: "",
+    authorName: "",
+    description: "",
+    category: "",
+    coverImage: null as File | null,
+    pdfFile: null as File | null,
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const submitData = new FormData();
+      submitData.append('title', formData.title);
+      submitData.append('authorName', formData.authorName);
+      submitData.append('description', formData.description);
+      submitData.append('category', formData.category);
+      
+      if (formData.coverImage) {
+        submitData.append('coverImage', formData.coverImage);
+      }
+      
+      if (formData.pdfFile) {
+        submitData.append('pdfFile', formData.pdfFile);
+      }
+
+      let response;
+      if (editingBook) {
+        // Update book
+        response = await fetch(`${API_BASE_URL}/books/${editingBook._id}`, {
+          method: 'PATCH',
+          body: submitData,
+          // Note: Don't set Content-Type header for FormData, browser will set it automatically with boundary
+        });
+      } else {
+        // Create new book
+        response = await fetch(`${API_BASE_URL}/books`, {
+          method: 'POST',
+          body: submitData,
+          // Note: Don't set Content-Type header for FormData, browser will set it automatically with boundary
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${editingBook ? 'update' : 'create'} book`);
+      }
+
+      await fetchBooks(); // Refresh the list
+      toast({ 
+        title: `Book ${editingBook ? 'updated' : 'uploaded'} successfully` 
+      });
+      resetForm();
+    } catch (error) {
+      console.error('Error saving book:', error);
+      toast({
+        title: "Error",
+        description: `Failed to ${editingBook ? 'update' : 'upload'} book`,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEdit = (book: BookItem) => {
     setEditingBook(book);
     setFormData({
       title: book.title,
-      author: book.author,
+      authorName: book.authorName,
       description: book.description,
       category: book.category,
-      coverImage: book.coverImage,
-      pdfFile: book.pdfFile,
-      uploadDate: book.uploadDate,
+      coverImage: null,
+      pdfFile: null,
     });
     setIsAddDialogOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    setBooks(books.filter((b) => b.id !== id));
-    toast({ title: "Book deleted successfully", variant: "destructive" });
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this book?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/books/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete book');
+      }
+
+      setBooks(books.filter((b) => b._id !== id));
+      toast({ 
+        title: "Book deleted successfully",
+        variant: "destructive" 
+      });
+    } catch (error) {
+      console.error('Error deleting book:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete book",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownload = async (bookId: string, bookTitle: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/books/${bookId}/download`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download book');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${bookTitle}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({ title: "Download started" });
+    } catch (error) {
+      console.error('Error downloading book:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download book",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
     setFormData({
       title: "",
-      author: "",
+      authorName: "",
       description: "",
       category: "",
-      coverImage: "",
-      pdfFile: "",
-      uploadDate: new Date().toISOString().split("T")[0],
+      coverImage: null,
+      pdfFile: null,
     });
     setEditingBook(null);
     setIsAddDialogOpen(false);
@@ -123,9 +209,29 @@ const BookManagement = () => {
   const filteredBooks = books.filter(
     (book) =>
       book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      book.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      book.authorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       book.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <p className="text-lg text-muted-foreground">Loading books...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -140,7 +246,9 @@ const BookManagement = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <CardTitle>All Books</CardTitle>
-                <CardDescription>Manage PDF books and publications</CardDescription>
+                <CardDescription>
+                  Manage PDF books and publications ({books.length} books)
+                </CardDescription>
               </div>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
@@ -158,7 +266,7 @@ const BookManagement = () => {
                   </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                      <Label htmlFor="title">Book Title</Label>
+                      <Label htmlFor="title">Book Title *</Label>
                       <Input
                         id="title"
                         value={formData.title}
@@ -167,16 +275,16 @@ const BookManagement = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="author">Author</Label>
+                      <Label htmlFor="authorName">Author Name *</Label>
                       <Input
-                        id="author"
-                        value={formData.author}
-                        onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                        id="authorName"
+                        value={formData.authorName}
+                        onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
                         required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="category">Category</Label>
+                      <Label htmlFor="category">Category *</Label>
                       <select
                         id="category"
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -193,7 +301,7 @@ const BookManagement = () => {
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="description">Description</Label>
+                      <Label htmlFor="description">Description *</Label>
                       <Textarea
                         id="description"
                         value={formData.description}
@@ -203,7 +311,7 @@ const BookManagement = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="coverImage">Cover Image</Label>
+                      <Label htmlFor="coverImage">Cover Image (Optional)</Label>
                       <div className="flex items-center gap-2">
                         <Input
                           id="coverImage"
@@ -212,17 +320,21 @@ const BookManagement = () => {
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              setFormData({ ...formData, coverImage: file.name });
-                              toast({ title: "Cover image selected (mock upload)" });
+                              setFormData({ ...formData, coverImage: file });
                             }
                           }}
                         />
                         <Upload className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">Upload a cover image for the book</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {editingBook && editingBook.coverImage ? 
+                          `Current: ${editingBook.coverImage}` : 
+                          'Upload a cover image for the book'
+                        }
+                      </p>
                     </div>
                     <div>
-                      <Label htmlFor="pdfFile">PDF File</Label>
+                      <Label htmlFor="pdfFile">PDF File *</Label>
                       <div className="flex items-center gap-2">
                         <Input
                           id="pdfFile"
@@ -231,20 +343,27 @@ const BookManagement = () => {
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              setFormData({ ...formData, pdfFile: file.name });
-                              toast({ title: "PDF file selected (mock upload)" });
+                              setFormData({ ...formData, pdfFile: file });
                             }
                           }}
+                          required={!editingBook}
                         />
                         <FileText className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">Upload the PDF file for the book</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {editingBook && editingBook.pdfFile ? 
+                          `Current: ${editingBook.pdfFile}` : 
+                          'Upload the PDF file for the book'
+                        }
+                      </p>
                     </div>
                     <div className="flex justify-end gap-2 pt-4">
                       <Button type="button" variant="outline" onClick={resetForm}>
                         Cancel
                       </Button>
-                      <Button type="submit">{editingBook ? "Update" : "Upload"}</Button>
+                      <Button type="submit" disabled={!formData.pdfFile && !editingBook}>
+                        {editingBook ? "Update Book" : "Upload Book"}
+                      </Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -256,7 +375,7 @@ const BookManagement = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="Search books..."
+                  placeholder="Search books by title, author, or category..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -264,37 +383,66 @@ const BookManagement = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredBooks.map((book) => (
-                <Card key={book.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <Book className="h-8 w-8 text-primary" />
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(book)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(book.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+            {filteredBooks.length === 0 ? (
+              <div className="text-center py-12">
+                <Book className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground text-lg">
+                  {searchQuery ? 'No books found matching your search.' : 'No books available yet.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredBooks.map((book) => (
+                  <Card key={book._id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <Book className="h-8 w-8 text-primary" />
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDownload(book._id, book.title)}
+                            title="Download"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleEdit(book)}
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDelete(book._id)}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <CardTitle className="text-lg mt-2">{book.title}</CardTitle>
-                    <CardDescription>by {book.author}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-3">{book.description}</p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="px-2 py-1 rounded-full bg-muted">{book.category}</span>
-                      <span>{book.downloads} downloads</span>
-                    </div>
-                    <div className="mt-3 text-xs text-muted-foreground">
-                      Uploaded: {new Date(book.uploadDate).toLocaleDateString()}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      <CardTitle className="text-lg mt-2 line-clamp-2">{book.title}</CardTitle>
+                      <CardDescription>by {book.authorName}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
+                        {book.description}
+                      </p>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                        <span className="px-2 py-1 rounded-full bg-muted">{book.category}</span>
+                        <span>{book.downloads || 0} downloads</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Added: {formatDate(book.createdAt)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
