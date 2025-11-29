@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Search, Edit, Trash2, Book, Upload, FileText, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 
 interface BookItem {
   _id: string;
@@ -35,6 +36,7 @@ interface BookItem {
 
 const BookManagement = () => {
   const { toast } = useToast();
+  const { token } = useAuth(); // Use the auth context
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<BookItem | null>(null);
@@ -43,11 +45,6 @@ const BookManagement = () => {
   const [books, setBooks] = useState<BookItem[]>([]);
 
   const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
-  
-  // Get token from localStorage
-  const getAuthToken = () => {
-    return localStorage.getItem('adminToken');
-  };
 
   const categories = ["Spiritual Growth", "Education", "Prayer", "Theology", "Biography", "Devotional", "Other"];
 
@@ -89,19 +86,19 @@ const BookManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to manage books",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      const token = getAuthToken();
-      if (!token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please login as admin to manage books",
-          variant: "destructive",
-        });
-        return;
-      }
-
       // Validate required fields for new book
       if (!editingBook && !formData.pdfFile) {
         toast({
@@ -144,7 +141,6 @@ const BookManagement = () => {
         method: method,
         headers: {
           'Authorization': `Bearer ${token}`,
-          // Note: Don't set Content-Type for FormData - browser will set it automatically with boundary
         },
         body: submitData,
       });
@@ -201,17 +197,16 @@ const BookManagement = () => {
       return;
     }
 
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please login as admin to delete books",
-          variant: "destructive",
-        });
-        return;
-      }
+    if (!token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to delete books",
+        variant: "destructive",
+      });
+      return;
+    }
 
+    try {
       const response = await fetch(`${API_BASE_URL}/books/${id}`, {
         method: 'DELETE',
         headers: {
