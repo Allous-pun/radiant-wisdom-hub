@@ -45,7 +45,7 @@ const AdminDashboard = () => {
       value: "67",
       description: "Active resources",
       icon: Calendar,
-      link: "/admin/materials",
+      link: "/admin/learning-materials",
     },
   ];
 

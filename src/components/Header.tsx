@@ -211,6 +211,11 @@ const Header = () => {
                         Assignment Management
                       </NavLink>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <NavLink to="/admin/learning-materials" className="w-full cursor-pointer">
+                        Learning Materials
+                      </NavLink>
+                    </DropdownMenuItem>
                   </>
                 )}
 
@@ -407,6 +412,14 @@ const Header = () => {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Assignment Management
+                  </NavLink>
+                  <NavLink
+                    to="/admin/learning-materials"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Learning Materials
                   </NavLink>
                 </>
               )}

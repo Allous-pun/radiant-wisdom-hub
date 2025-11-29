@@ -29,6 +29,7 @@ import AdminSermonManagement from "./pages/admin/SermonManagement";
 import AdminPrayerManagement from "./pages/admin/PrayerManagement";
 import BookManagement from "./pages/admin/BookManagement";
 import AssignmentManagement from "./pages/admin/AssignmentManagement";
+import LearningMaterialManagement from "./pages/admin/LearningMaterialManagement";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/admin/prayers" element={<AdminPrayerManagement />} />
               <Route path="/admin/books" element={<BookManagement />} />
               <Route path="/admin/assignments" element={<AssignmentManagement />} />
+              <Route path="/admin/learning-materials" element={<LearningMaterialManagement />} />
 
               {/* 404 Route - MUST BE LAST */}
               <Route path="*" element={<NotFound />} />
