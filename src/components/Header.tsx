@@ -31,6 +31,20 @@ const Header = () => {
     setIsMenuOpen(false);
   };
 
+  const getDashboardPath = () => {
+    if (!user) return '/';
+    switch (user.role) {
+      case 'student':
+        return '/student';
+      case 'clergy':
+        return '/clergy';
+      case 'admin':
+        return '/admin';
+      default:
+        return '/';
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between px-4">
@@ -85,9 +99,11 @@ const Header = () => {
           >
             Contact
           </NavLink>
-          {user?.role === 'student' && (
+          
+          {/* Role-specific navigation */}
+          {user && (
             <NavLink
-              to="/student"
+              to={getDashboardPath()}
               className="text-sm font-medium transition-colors hover:text-primary"
               activeClassName="text-primary"
             >
@@ -121,14 +137,18 @@ const Header = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                
+                {/* Dashboard Link */}
+                <DropdownMenuItem asChild>
+                  <NavLink to={getDashboardPath()} className="w-full cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    Dashboard
+                  </NavLink>
+                </DropdownMenuItem>
+
+                {/* Student-specific links */}
                 {user.role === 'student' && (
                   <>
-                    <DropdownMenuItem asChild>
-                      <NavLink to="/student" className="w-full cursor-pointer">
-                        <User className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </NavLink>
-                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <NavLink to="/student/materials" className="w-full cursor-pointer">
                         Learning Materials
@@ -144,9 +164,57 @@ const Header = () => {
                         Zoom Schedule
                       </NavLink>
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                   </>
                 )}
+
+                {/* Clergy-specific links */}
+                {user.role === 'clergy' && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <NavLink to="/clergy/sermons" className="w-full cursor-pointer">
+                        Sermon Management
+                      </NavLink>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <NavLink to="/clergy/prayers" className="w-full cursor-pointer">
+                        Prayer Management
+                      </NavLink>
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {/* Admin-specific links */}
+                {user.role === 'admin' && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <NavLink to="/admin/users" className="w-full cursor-pointer">
+                        User Management
+                      </NavLink>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <NavLink to="/admin/sermons" className="w-full cursor-pointer">
+                        Sermon Management
+                      </NavLink>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <NavLink to="/admin/prayers" className="w-full cursor-pointer">
+                        Prayer Management
+                      </NavLink>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <NavLink to="/admin/books" className="w-full cursor-pointer">
+                        Book Management
+                      </NavLink>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <NavLink to="/admin/assignments" className="w-full cursor-pointer">
+                        Assignment Management
+                      </NavLink>
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <NavLink to="/profile" className="w-full cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />
@@ -232,40 +300,116 @@ const Header = () => {
           >
             Contact
           </NavLink>
-          {user?.role === 'student' && (
+
+          {/* Role-specific navigation for mobile */}
+          {user && (
             <>
               <NavLink
-                to="/student"
+                to={getDashboardPath()}
                 className="block py-2 text-sm font-medium hover:text-primary"
                 activeClassName="text-primary"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Dashboard
               </NavLink>
-              <NavLink
-                to="/student/materials"
-                className="block py-2 text-sm font-medium hover:text-primary"
-                activeClassName="text-primary"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Learning Materials
-              </NavLink>
-              <NavLink
-                to="/student/assignments"
-                className="block py-2 text-sm font-medium hover:text-primary"
-                activeClassName="text-primary"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Assignments
-              </NavLink>
-              <NavLink
-                to="/student/zoom-schedule"
-                className="block py-2 text-sm font-medium hover:text-primary"
-                activeClassName="text-primary"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Zoom Schedule
-              </NavLink>
+
+              {/* Student-specific links */}
+              {user.role === 'student' && (
+                <>
+                  <NavLink
+                    to="/student/materials"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Learning Materials
+                  </NavLink>
+                  <NavLink
+                    to="/student/assignments"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Assignments
+                  </NavLink>
+                  <NavLink
+                    to="/student/zoom-schedule"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Zoom Schedule
+                  </NavLink>
+                </>
+              )}
+
+              {/* Clergy-specific links */}
+              {user.role === 'clergy' && (
+                <>
+                  <NavLink
+                    to="/clergy/sermons"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sermon Management
+                  </NavLink>
+                  <NavLink
+                    to="/clergy/prayers"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Prayer Management
+                  </NavLink>
+                </>
+              )}
+
+              {/* Admin-specific links */}
+              {user.role === 'admin' && (
+                <>
+                  <NavLink
+                    to="/admin/users"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    User Management
+                  </NavLink>
+                  <NavLink
+                    to="/admin/sermons"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sermon Management
+                  </NavLink>
+                  <NavLink
+                    to="/admin/prayers"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Prayer Management
+                  </NavLink>
+                  <NavLink
+                    to="/admin/books"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Book Management
+                  </NavLink>
+                  <NavLink
+                    to="/admin/assignments"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Assignment Management
+                  </NavLink>
+                </>
+              )}
             </>
           )}
           

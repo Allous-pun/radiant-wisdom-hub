@@ -5,12 +5,14 @@ import { Label } from "@/components/ui/label";
 import { NavLink } from "@/components/NavLink";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext"; // Add this import
-import { useNavigate } from "react-router-dom"; // Add this import
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+
+const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
 
 const Login = () => {
   const { toast } = useToast();
-  const { login } = useAuth(); // Use the auth context
+  const { setUser, setToken } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,10 +25,68 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      await login(formData.email, formData.password);
-      navigate('/');
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      // Success - store token and user data
+      const { user, token } = data.data;
+      
+      localStorage.setItem('authToken', token);
+      setToken(token);
+      setUser(user);
+      
+      toast({
+        title: "Welcome back!",
+        description: `Successfully logged in as ${user.name}`,
+      });
+
+      // Redirect based on role
+      let dashboardPath = '/';
+      switch (user.role) {
+        case 'student':
+          dashboardPath = '/student';
+          break;
+        case 'clergy':
+          dashboardPath = '/clergy';
+          break;
+        case 'admin':
+          dashboardPath = '/admin';
+          break;
+        default:
+          dashboardPath = '/';
+      }
+      
+      navigate(dashboardPath);
+
     } catch (error) {
-      // Error is already handled by the API service
+      console.error('Login error:', error);
+      if (error instanceof Error) {
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Login Failed",
+          description: "An unexpected error occurred",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

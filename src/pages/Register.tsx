@@ -8,9 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
+const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
+
 const Register = () => {
   const { toast } = useToast();
-  const { register } = useAuth();
+  const { setUser, setToken } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,7 +22,7 @@ const Register = () => {
     confirmPassword: "",
     studentId: "",
     department: "",
-    secretKey: "", // For admin/clergy registration
+    secretKey: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,20 +49,16 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      // Default role is student
       let role: "student" | "clergy" | "admin" = "student";
       let profile: any = {};
 
-      // Check if secret key is provided for admin/clergy roles
       if (formData.secretKey) {
         if (formData.secretKey === "admin_secret_2024") {
           role = "admin";
-          profile = {
-            position: "Administrator"
-          };
+          profile = { position: "Administrator" };
         } else if (formData.secretKey === "clergy_secret_2024") {
           role = "clergy";
-          profile = {
+          profile = { 
             position: "Clergy Member",
             church: "To be updated"
           };
@@ -74,7 +72,6 @@ const Register = () => {
           return;
         }
       } else {
-        // Student registration
         profile = {
           studentId: formData.studentId,
           department: formData.department,
@@ -89,10 +86,65 @@ const Register = () => {
         profile: profile,
       };
 
-      await register(registerData);
-      navigate('/');
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registerData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      // Success - store token and user data
+      const { user, token } = data.data;
+      
+      localStorage.setItem('authToken', token);
+      setToken(token);
+      setUser(user);
+      
+      toast({
+        title: "Welcome!",
+        description: "Account created successfully",
+      });
+
+      // Redirect based on role
+      let dashboardPath = '/';
+      switch (user.role) {
+        case 'student':
+          dashboardPath = '/student';
+          break;
+        case 'clergy':
+          dashboardPath = '/clergy';
+          break;
+        case 'admin':
+          dashboardPath = '/admin';
+          break;
+        default:
+          dashboardPath = '/';
+      }
+      
+      navigate(dashboardPath);
+
     } catch (error) {
-      // Error is already handled by the API service
+      console.error('Registration error:', error);
+      if (error instanceof Error) {
+        toast({
+          title: "Registration Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Registration Failed",
+          description: "An unexpected error occurred",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -136,7 +188,6 @@ const Register = () => {
               />
             </div>
 
-            {/* Student-specific fields - shown by default */}
             <div className="space-y-2">
               <Label htmlFor="studentId">Student ID (Optional)</Label>
               <Input
