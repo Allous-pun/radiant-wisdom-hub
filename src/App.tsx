@@ -20,6 +20,9 @@ import StudentDashboard from "./pages/student/StudentDashboard";
 import LearningMaterials from "./pages/student/LearningMaterials";
 import Assignments from "./pages/student/Assignments";
 import ZoomSchedule from "./pages/student/ZoomSchedule";
+import ClergyDashboard from "./pages/clergy/ClergyDashboard";
+import ClergySermonManagement from "./pages/clergy/SermonManagement";
+import ClergyPrayerManagement from "./pages/clergy/PrayerManagement";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +54,29 @@ const App = () => (
             </Routes>
           </Layout>
         </AuthProvider>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/sermons" element={<Sermons />} />
+            <Route path="/sermons/:id" element={<SermonDetail />} />
+            <Route path="/prayers" element={<Prayers />} />
+            <Route path="/prayers/:id" element={<PrayerDetail />} />
+            <Route path="/books" element={<Books />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/student" element={<StudentDashboard />} />
+            <Route path="/student/materials" element={<LearningMaterials />} />
+            <Route path="/student/assignments" element={<Assignments />} />
+            <Route path="/student/zoom-schedule" element={<ZoomSchedule />} />
+            <Route path="/clergy" element={<ClergyDashboard />} />
+            <Route path="/clergy/sermons" element={<ClergySermonManagement />} />
+            <Route path="/clergy/prayers" element={<ClergyPrayerManagement />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Layout>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
