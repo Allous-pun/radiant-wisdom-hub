@@ -69,9 +69,11 @@ const Sermons = () => {
     });
   };
 
-  const getDuration = (content: string) => {
+  const getDuration = (content: string | undefined) => {
     // Estimate reading time based on content length
     const wordsPerMinute = 200;
+    if (!content) return '1 min read';
+    
     const words = content.split(/\s+/).length;
     const minutes = Math.ceil(words / wordsPerMinute);
     return `${minutes} min read`;
@@ -113,13 +115,15 @@ const Sermons = () => {
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <CardHeader>
-                  <CardTitle className="text-xl line-clamp-2">{sermon.title}</CardTitle>
+                  <CardTitle className="text-xl line-clamp-2">{sermon.title?.replace(/"/g, '') || 'Untitled Sermon'}</CardTitle>
                   <CardDescription className="text-sm">
-                    {sermon.category} • By {sermon.author.name}
+                    {sermon.category?.replace(/"/g, '') || 'General'} • By {sermon.author?.name || 'Unknown Author'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-4 line-clamp-3">{sermon.summary}</p>
+                  <p className="text-muted-foreground mb-4 line-clamp-3">
+                    {sermon.summary?.replace(/"/g, '') || 'No summary available.'}
+                  </p>
                   
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                     <div className="flex items-center gap-1">
@@ -132,21 +136,23 @@ const Sermons = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-1 mb-4">
-                    {sermon.tags.slice(0, 3).map((tag, tagIndex) => (
-                      <span 
-                        key={tagIndex} 
-                        className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {sermon.tags.length > 3 && (
-                      <span className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs">
-                        +{sermon.tags.length - 3} more
-                      </span>
-                    )}
-                  </div>
+                  {sermon.tags && sermon.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {sermon.tags.slice(0, 3).map((tag, tagIndex) => (
+                        <span 
+                          key={tagIndex} 
+                          className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs"
+                        >
+                          {tag?.replace(/"/g, '')}
+                        </span>
+                      ))}
+                      {sermon.tags.length > 3 && (
+                        <span className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs">
+                          +{sermon.tags.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <Button variant="outline" className="w-full" asChild>
                     <NavLink to={`/sermons/${sermon._id}`}>
