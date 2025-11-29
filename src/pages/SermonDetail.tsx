@@ -18,11 +18,18 @@ interface Sermon {
   author: {
     _id: string;
     name: string;
-    email: string;
   };
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SermonResponse {
+  status: string;
+  message: string;
+  data: {
+    sermon: Sermon;
+  };
 }
 
 const SermonDetail = () => {
@@ -44,8 +51,8 @@ const SermonDetail = () => {
         throw new Error('Failed to fetch sermon');
       }
       
-      const data = await response.json();
-      setSermon(data.data);
+      const data: SermonResponse = await response.json();
+      setSermon(data.data.sermon);
     } catch (error) {
       console.error('Error fetching sermon:', error);
       toast({
@@ -117,10 +124,10 @@ const SermonDetail = () => {
 
         <Card>
           <CardContent className="pt-8">
-            <h1 className="text-3xl md:text-4xl font-bold mb-3">{sermon.title}</h1>
-            <p className="text-xl text-secondary mb-2">{sermon.summary}</p>
+            <h1 className="text-3xl md:text-4xl font-bold mb-3">{sermon.title.replace(/"/g, '')}</h1>
+            <p className="text-xl text-secondary mb-2">{sermon.summary.replace(/"/g, '')}</p>
             <p className="text-muted-foreground mb-4">
-              {sermon.category} • By {sermon.author.name}
+              {sermon.category.replace(/"/g, '')} • By {sermon.author?.name || 'Unknown Author'}
             </p>
             
             <div className="flex items-center gap-6 text-sm text-muted-foreground mb-8 pb-8 border-b">
@@ -141,7 +148,7 @@ const SermonDetail = () => {
                   key={index} 
                   className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
                 >
-                  {tag}
+                  {tag.replace(/"/g, '')}
                 </span>
               ))}
             </div>
@@ -174,12 +181,14 @@ const SermonDetail = () => {
               className="prose prose-lg max-w-none"
               dangerouslySetInnerHTML={{ 
                 __html: sermon.content 
+                  .replace(/"/g, '')
                   .split('\n')
                   .map(paragraph => {
-                    if (paragraph.trim().startsWith('<h2>') || paragraph.trim().startsWith('<h3>')) {
-                      return paragraph;
+                    const trimmed = paragraph.trim();
+                    if (trimmed.startsWith('<h2>') || trimmed.startsWith('<h3>') || trimmed.startsWith('<h4>')) {
+                      return trimmed;
                     }
-                    return `<p>${paragraph}</p>`;
+                    return trimmed ? `<p>${trimmed}</p>` : '';
                   })
                   .join('') 
               }}
@@ -189,7 +198,7 @@ const SermonDetail = () => {
             <div className="mt-12 pt-8 border-t">
               <h3 className="font-semibold text-lg mb-2">About the Speaker</h3>
               <p className="text-muted-foreground">
-                {sermon.author.name} is dedicated to sharing God's word and helping believers grow in their faith journey.
+                {sermon.author?.name || 'Unknown Author'} is dedicated to sharing God's word and helping believers grow in their faith journey.
               </p>
             </div>
           </CardContent>
