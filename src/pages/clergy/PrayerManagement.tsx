@@ -47,12 +47,10 @@ const PrayerManagement = () => {
 
   const API_BASE_URL = 'https://excellence-choge.onrender.com/api';
 
-  // Fetch prayers by current author
+  // Fetch all prayers and filter by current user
   const fetchMyPrayers = async () => {
-    if (!user) return;
-    
     try {
-      const response = await fetch(`${API_BASE_URL}/prayers/author/${user._id}`, {
+      const response = await fetch(`${API_BASE_URL}/prayers`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -63,7 +61,10 @@ const PrayerManagement = () => {
       }
       
       const data = await response.json();
-      setPrayers(data.data.prayers || []);
+      // FIX: Access the data array directly and filter by current user
+      const allPrayers = data.data || [];
+      const myPrayers = allPrayers.filter((prayer: Prayer) => prayer.author._id === user?._id);
+      setPrayers(myPrayers);
     } catch (error) {
       console.error('Error fetching prayers:', error);
       toast({

@@ -61,7 +61,8 @@ const PrayerManagement = () => {
       }
       
       const data = await response.json();
-      setPrayers(data.data.prayers || []);
+      // FIX: Access the data array directly from response
+      setPrayers(data.data || []);
     } catch (error) {
       console.error('Error fetching prayers:', error);
       toast({
