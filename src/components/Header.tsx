@@ -216,6 +216,11 @@ const Header = () => {
                         Learning Materials
                       </NavLink>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <NavLink to="/admin/zoom" className="w-full cursor-pointer">
+                        Zoom Management
+                      </NavLink>
+                    </DropdownMenuItem>
                   </>
                 )}
 
@@ -420,6 +425,14 @@ const Header = () => {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Learning Materials
+                  </NavLink>
+                  <NavLink
+                    to="/admin/zoom"
+                    className="block py-2 text-sm font-medium hover:text-primary"
+                    activeClassName="text-primary"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Zoom Management
                   </NavLink>
                 </>
               )}

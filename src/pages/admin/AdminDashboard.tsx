@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, BookOpen, Heart, Book, FileText, Calendar } from "lucide-react";
+import { Users, BookOpen, Heart, Book, FileText, Calendar, Video } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const AdminDashboard = () => {
@@ -46,6 +46,13 @@ const AdminDashboard = () => {
       description: "Active resources",
       icon: Calendar,
       link: "/admin/learning-materials",
+    },
+    {
+      title: "Zoom Meetings",
+      value: "24",
+      description: "Scheduled classes",
+      icon: Video,
+      link: "/admin/zoom",
     },
   ];
 
@@ -106,10 +113,10 @@ const AdminDashboard = () => {
                   <span className="text-sm">Manage Sermons</span>
                 </Button>
               </Link>
-              <Link to="/admin/books">
+              <Link to="/admin/zoom">
                 <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center gap-2">
-                  <Book className="h-5 w-5" />
-                  <span className="text-sm">Upload Books</span>
+                  <Video className="h-5 w-5" />
+                  <span className="text-sm">Manage Zoom</span>
                 </Button>
               </Link>
             </CardContent>
