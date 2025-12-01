@@ -1,4 +1,5 @@
 import { Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
@@ -15,10 +16,26 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold mb-3">Quick Links</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="/about" className="hover:text-primary transition-colors">About Eugene</a></li>
-              <li><a href="/sermons" className="hover:text-primary transition-colors">Sermons</a></li>
-              <li><a href="/prayers" className="hover:text-primary transition-colors">Prayers</a></li>
-              <li><a href="/books" className="hover:text-primary transition-colors">Books</a></li>
+              <li>
+                <Link to="/about" className="hover:text-primary transition-colors">
+                  About Eugene
+                </Link>
+              </li>
+              <li>
+                <Link to="/sermons" className="hover:text-primary transition-colors">
+                  Sermons
+                </Link>
+              </li>
+              <li>
+                <Link to="/prayers" className="hover:text-primary transition-colors">
+                  Prayers
+                </Link>
+              </li>
+              <li>
+                <Link to="/books" className="hover:text-primary transition-colors">
+                  Books
+                </Link>
+              </li>
             </ul>
           </div>
           
@@ -27,9 +44,9 @@ const Footer = () => {
             <p className="text-sm text-muted-foreground mb-2">
               For speaking engagements or spiritual guidance.
             </p>
-            <a href="/contact" className="text-sm text-primary hover:underline">
+            <Link to="/contact" className="text-sm text-primary hover:underline">
               Get in Touch
-            </a>
+            </Link>
           </div>
         </div>
         
